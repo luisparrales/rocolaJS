@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Canción actual de Spotify</title>
+    <style>
+        body {
+            margin-bottom: 80px;
+            /* espacio para el banner */
+        }
+
+        #spotify-banner {
+            position: fixed;
+            left: 0;
+            bottom: 0;
+            width: 100vw;
+            background: rgba(30, 215, 96, 0.95);
+            color: #fff;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            padding: 10px 16px;
+            box-sizing: border-box;
+            z-index: 9999;
+            flex-wrap: wrap;
+        }
+
+        #spotify-banner img {
+            width: 48px;
+            height: 48px;
+            border-radius: 8px;
+            margin-right: 12px;
+            flex-shrink: 0;
+        }
+
+        #song-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        #song-title {
+            font-weight: bold;
+            font-size: 1rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #song-artist {
+            font-size: 0.9rem;
+            opacity: 0.85;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        #progress-bar-container {
+            width: 100%;
+            margin-top: 6px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+            height: 6px;
+            overflow: hidden;
+        }
+
+        #progress-bar {
+            height: 100%;
+            background: #fff;
+            border-radius: 4px;
+            width: 0%;
+            transition: width 0.5s linear;
+        }
+
+        @media (max-width: 600px) {
+            #spotify-banner {
+                padding: 8px;
+            }
+
+            #spotify-banner img {
+                width: 40px;
+                height: 40px;
+                margin-right: 8px;
+            }
+
+            #song-title {
+                font-size: 0.95rem;
+            }
+
+            #song-artist {
+                font-size: 0.85rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div style="max-width:500px;margin:32px auto 0;">
+        <form id="search-form" autocomplete="off" style="display:flex;gap:8px;">
+            <input type="text" id="search-input" placeholder="Buscar canciones en Spotify..."
+                style="flex:1;padding:8px;border-radius:4px;border:1px solid #ccc;">
+            <button type="submit"
+                style="padding:8px 16px;border:none;border-radius:4px;background:#1DB954;color:#fff;font-weight:bold;cursor:pointer;">Buscar</button>
+        </form>
+        <ul id="search-results" style="list-style:none;padding:0;margin-top:16px;"></ul>
+        <ul id="queue" style="list-style:none;padding:0;margin-top:16px;"></ul>
+        <div id="add-message"
+            style="display:none;margin-top:16px;padding:12px;background:#1DB954;color:#fff;border-radius:4px;text-align:center;font-weight:bold;">
+        </div>
+    </div>
+    <script>
+        const searchForm = document.getElementById('search-form');
+        const searchInput = document.getElementById('search-input');
+        const searchResults = document.getElementById('search-results');
+        const queueSongs = document.getElementById('queue');
+        const addMessage = document.getElementById('add-message');
+        let addedSongs = [];
+
+        searchForm.addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const query = searchInput.value.trim();
+            if (!query) return;
+            searchResults.innerHTML = '<li>Buscando...</li>';
+            try {
+                const res = await fetch(`https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=track&limit=10`, {
+                    headers: {
+                        'Authorization': `Bearer ${access_token}`
+                    }
+                });
+                if (!res.ok) {
+                    searchResults.innerHTML = '<li>Error al buscar canciones.</li>';
+                    return;
+                }
+                const data = await res.json();
+                const tracks = data.tracks.items;
+                if (!tracks.length) {
+                    searchResults.innerHTML = '<li>No se encontraron canciones.</li>';
+                    return;
+                }
+                searchResults.innerHTML = tracks.map(track => `
+                    <li style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #eee;">
+                        <img src="${track.album.images[2]?.url || track.album.images[0]?.url}" alt="Album" style="width:40px;height:40px;border-radius:6px;margin-right:12px;">
+                        <div style="flex:1;min-width:0;">
+                            <div style="font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track.name}</div>
+                            <div style="font-size:0.95em;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track.artists.map(a => a.name).join(', ')}</div>
+                        </div>
+                        <button class="add-btn" data-id="${track.id}" style="margin-left:12px;padding:6px 12px;border:none;border-radius:4px;background:#1DB954;color:#fff;font-weight:bold;cursor:pointer;">Añadir</button>
+                    </li>
+                `).join('');
+            } catch {
+                searchResults.innerHTML = '<li>Error de conexión.</li>';
+            }
+        });
+
+        searchResults.addEventListener('click', function (e) {
+            if (e.target.classList.contains('add-btn')) {
+                const songId = e.target.getAttribute('data-id');
+                addedSongs.push(songId);
+                addMessage.textContent = 'Añadido correctamente';
+                addMessage.style.display = 'block';
+                searchResults.innerHTML = '';
+                searchInput.value = '';
+                console.log(addedSongs);
+                setTimeout(() => {
+                    addMessage.style.display = 'none';
+                }, 1500);
+            }
+        });
+    </script>
+    <div id="spotify-banner" style="display:none;">
+        <img id="album-art" src="" alt="Album Art">
+        <div id="song-info">
+            <div id="song-title"></div>
+            <div id="song-artist"></div>
+            <div id="progress-bar-container">
+                <div id="progress-bar"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        // Pega tu access_token aquí
+        let access_token = '';//BQDGH3g3JYN-iszKRXGX_r2OveXO5aJy6PXn6eqo4tJBiOd8p1Vg1FbDZelWBDXTBe5cRZd1jGhF2HJg6dCA0ftck-2gz9kJecoU9osQ4eys9jiwedXKoB4VKPcFB3RClGM3fIoqXO0vpzs23so-xsxCR_siwPAw_AbFVddCVLSvywgfm3QqmkOV-wV8XdaUQ3fcClRuAEaPUGRFLAfgZpdTHGGiHLRJcyIJF7Qs2K2U3LVWNWsCSG3dN37bn9081u9NQ6jZ-6CELJ1QDqChQ5eKMXJaFoQg1K6LN0urUQ0PTM2M0eFGQbyxuSb0m29ujaNZBcc-IYhoNdXmigzefjjSV6xTZbaYyjcexcwWGcT67gFZGI-SnOCoaxxw44Kt';
+        async function loadToken() {
+            const res = await fetch('token.json');
+            if (res.ok) {
+            const data = await res.json();
+            access_token = data.access_token;
+            } else {
+            console.error('No se pudo cargar el token');
+            }
+        }
+        
+        async function fetchCurrentSong() {
+            await loadToken();
+            const res = await fetch('https://api.spotify.com/v1/me/player/currently-playing', {
+                headers: {
+                    'Authorization': `Bearer ${access_token}`
+                }
+            });
+            if (res.status === 204 || res.status === 401) {
+                document.getElementById('spotify-banner').style.display = 'none';
+                return null;
+            }
+            const data = await res.json();
+            if (!data || !data.item) {
+                document.getElementById('spotify-banner').style.display = 'none';
+                return null;
+            }
+            return {
+                title: data.item.name,
+                artist: data.item.artists.map(a => a.name).join(', '),
+                albumArt: data.item.album.images[1]?.url || data.item.album.images[0]?.url,
+                duration: data.item.duration_ms,
+                progress: data.progress_ms,
+                is_playing: data.is_playing
+            };
+        }
+
+        let currentSong = null;
+        let progressInterval = null;
+
+        async function updateBanner() {
+            const song = await fetchCurrentSong();
+            if (!song) {
+                currentSong = null;
+                clearInterval(progressInterval);
+                return;
+            }
+            currentSong = song;
+            document.getElementById('spotify-banner').style.display = 'flex';
+            document.getElementById('album-art').src = song.albumArt;
+            document.getElementById('song-title').textContent = song.title;
+            document.getElementById('song-artist').textContent = song.artist;
+            updateProgressBar(song.progress, song.duration);
+
+            clearInterval(progressInterval);
+            if (song.is_playing) {
+                let progress = song.progress;
+                progressInterval = setInterval(() => {
+                    progress += 1000;
+                    if (progress > song.duration) progress = song.duration;
+                    updateProgressBar(progress, song.duration);
+                }, 1000);
+            }
+        }
+
+        function updateProgressBar(progress, duration) {
+            const percent = Math.min(100, (progress / duration) * 100);
+            document.getElementById('progress-bar').style.width = percent + '%';
+        }
+
+        // Actualiza cada 10 segundos
+        updateBanner();
+        setInterval(updateBanner, 10000);
+    </script>
+</body>
+
+</html>
+
+</html>
