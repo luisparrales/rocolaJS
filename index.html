@@ -126,7 +126,6 @@
                     console.log(tracks[0].id);
                 })
                 .catch(error => console.error('Error loading tracks:', error));
-
         };
 
         searchForm.addEventListener('submit', async function (e) {
@@ -165,7 +164,7 @@
             }
         });
 
-        searchResults.addEventListener('click', function (e) {
+        searchResults.addEventListener('click', async function (e) {
             if (e.target.classList.contains('add-btn')) {
                 const songId = e.target.getAttribute('data-id');
                 addedSongs.push(songId);
@@ -174,6 +173,22 @@
                 searchResults.innerHTML = '';
                 searchInput.value = '';
                 console.log(addedSongs);
+
+                // Enviar petición para encolar la canción
+                try {
+                    const res = await fetch(`https://api.spotify.com/v1/me/player/queue?uri=spotify:track:${songId}`, {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': `Bearer ${access_token}`
+                        }
+                    });
+                    if (!res.ok) {
+                        console.error('Error al encolar la canción');
+                    }
+                } catch (error) {
+                    console.error('Error de conexión al encolar la canción:', error);
+                }
+
                 setTimeout(() => {
                     addMessage.style.display = 'none';
                 }, 1500);
