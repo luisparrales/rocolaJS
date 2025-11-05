@@ -1,9 +1,16 @@
 [
     {
-        "id": null,
-        "posicion": null,
-        "cancion": null,
-        "artista": null,
-        "imagen": null
+        "id": "Ejemplo",
+        "posicion": 1,
+        "cancion": "Ejemplo",
+        "artista": [
+            {
+                "nombre": "Ejemplo"
+            },
+            {
+                "nombre": "Ejemplo 2"
+            }
+        ],
+        "imagen": "Ejemplo"
     }
 ]

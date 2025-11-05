@@ -116,14 +116,25 @@
         const queueSongs = document.getElementById('queue');
         const addMessage = document.getElementById('add-message');
         let addedSongs = [];
+        
 
         window.onload = function () {
-            var tracks = {};
+            var queuedTracksJSON = {};
             fetch('cola.json')
                 .then(response => response.json())
                 .then(data => {
-                    tracks = data;
-                    console.log(tracks[0].id);
+                    queuedTracksJSON = data;
+                    const queuedTracks = data.items;
+                    queueSongs.innerHTML = queuedTracksJSON.map(queuedTrack => `
+                        <li style="display:flex;align-items:center;padding:8px 0;border-bottom:1px solid #eee;">
+                            <img src="https://i.scdn.co/image/ab67616d00001e02ce30fb9bab80976be9b56604" alt="Album" style="width:40px;height:40px;border-radius:6px;margin-right:12px;">
+                            <div style="flex:1;min-width:0;">
+                                <div style="font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${queuedTrack.cancion}</div>
+                                <div style="font-size:0.95em;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${queuedTrack.artista.map(a => a.nombre).join(', ')}</div>
+                            </div>
+                        </li>
+                    `).join('');
+                    queueSongs.style.display = 'block';
                 })
                 .catch(error => console.error('Error loading tracks:', error));
         };
@@ -131,6 +142,7 @@
         searchForm.addEventListener('submit', async function (e) {
             e.preventDefault();
             const query = searchInput.value.trim();
+            queueSongs.style.display = 'none';
             if (!query) return;
             searchResults.innerHTML = '<li>Buscando...</li>';
             try {
@@ -156,7 +168,7 @@
                             <div style="font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track.name}</div>
                             <div style="font-size:0.95em;opacity:0.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${track.artists.map(a => a.name).join(', ')}</div>
                         </div>
-                        <button class="add-btn" data-id="${track.id}" style="margin-left:12px;padding:6px 12px;border:none;border-radius:4px;background:#1DB954;color:#fff;font-weight:bold;cursor:pointer;">Añadir</button>
+                        <button class="add-btn" data-id="${track.id}" data-album="${track.album.images[2]?.url || track.album.images[0]?.url}" data-nombre="${track.name}" data-artista="${track.artists.map(a => a.name).join(', ')}" style="margin-left:12px;padding:6px 12px;border:none;border-radius:4px;background:#1DB954;color:#fff;font-weight:bold;cursor:pointer;">Añadir</button>
                     </li>
                 `).join('');
             } catch {
@@ -167,13 +179,39 @@
         searchResults.addEventListener('click', async function (e) {
             if (e.target.classList.contains('add-btn')) {
                 const songId = e.target.getAttribute('data-id');
+                const songName = e.target.getAttribute('data-nombre');
+                const songArtist = e.target.getAttribute('data-artista');
+                const songAlbum = e.target.getAttribute('data-album');
                 addedSongs.push(songId);
                 addMessage.textContent = 'Añadido correctamente';
                 addMessage.style.display = 'block';
                 searchResults.innerHTML = '';
                 searchInput.value = '';
                 console.log(addedSongs);
-
+                // Añadir la nueva canción a cola.json
+                const newSong = {
+                    id: songId,
+                    posicion: addedSongs.length, // Puedes ajustar la posición según sea necesario
+                    cancion: songName,
+                    artista: [{ nombre: songArtist }],
+                    imagen: songAlbum
+                };
+                
+                // Guardar la nueva canción en el archivo cola.json
+                // try {
+                //     const response = await fetch('cola.json', {
+                //         method: 'POST',
+                //         headers: {
+                //             'Content-Type': 'application/json'
+                //         },
+                //         body: JSON.stringify(newSong)
+                //     });
+                //     if (!response.ok) {
+                //         console.error('Error al añadir la canción a cola.json');
+                //     }
+                // } catch (error) {
+                //     console.error('Error de conexión al añadir la canción:', error);
+                // }
                 // Enviar petición para encolar la canción
                 try {
                     const res = await fetch(`https://api.spotify.com/v1/me/player/queue?uri=spotify:track:${songId}`, {
@@ -191,6 +229,7 @@
 
                 setTimeout(() => {
                     addMessage.style.display = 'none';
+                    queueSongs.style.display = 'block';                
                 }, 1500);
             }
         });
